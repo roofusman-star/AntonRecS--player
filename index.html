@@ -344,6 +344,11 @@
         "durationStr": "5:07"
     }
 ];
+
+// === АВТО-СОРТИРОВКА (Свежак сверху) ===
+// Сортируем по ID (чем больше ID, тем новее песня)
+defaultTracks.sort((a, b) => Number(b.id) - Number(a.id));
+
         let tracks = [];
         let currentTrackIndex = 0;
         let isPlaying = false;
