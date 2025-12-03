@@ -44,6 +44,8 @@
             10% { height: 10%; }
             100% { height: 100%; }
         }
+        /* Модальное окно */
+        .modal-open { overflow: hidden; }
     </style>
 </head>
 <body class="selection:bg-cyan-500 selection:text-black min-h-screen">
@@ -61,7 +63,15 @@
                     AntonRecS<span class="text-cyan-400">--player</span>
                 </h1>
             </div>
-            <svg class="w-6 h-6 text-gray-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/></svg>
+            
+            <div class="flex items-center gap-4">
+                 <!-- Кнопка Вопрос -->
+                <button id="btn-open-qa" class="text-gray-400 hover:text-cyan-400 transition-colors p-1" title="Задать вопрос автору">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9.82 9.05a2 2 0 0 1 2.91 1.7c0 1.29-.87 1.84-1.27 2.15-.36.27-.6.55-.42 1.1"></path><path d="M11 15h.01"></path></svg>
+                </button>
+                <!-- Кнопка Скачать (заглушка иконки из оригинала) -->
+                <svg class="w-6 h-6 text-gray-500 hidden sm:block" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/></svg>
+            </div>
         </div>
     </header>
 
@@ -72,6 +82,26 @@
     
     <div class="h-12 text-center mt-8 opacity-20 text-xs font-mono max-w-2xl mx-auto">
         -- END OF PLAYLIST --
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО ВОПРОС-ОТВЕТ -->
+    <div id="qa-modal" class="fixed inset-0 z-[60] hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#111] border border-cyan-500/30 w-full max-w-md rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.8)] p-6 relative">
+            <button id="btn-close-qa" class="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            
+            <h2 class="text-xl font-bold text-white mb-1 tracking-wider">Связь с Автором</h2>
+            <p class="text-xs text-gray-500 font-mono mb-4">Напиши вопрос или отзыв. Откроется твой почтовый клиент.</p>
+            
+            <div class="space-y-4">
+                <textarea id="qa-text" class="w-full h-32 bg-black/50 border border-white/10 rounded-lg p-3 text-sm text-gray-200 focus:outline-none focus:border-cyan-500/50 transition-colors resize-none placeholder-gray-700 font-mono" placeholder="Текст сообщения..."></textarea>
+                
+                <button id="btn-send-email" class="w-full py-3 bg-cyan-900/30 hover:bg-cyan-500 text-cyan-400 hover:text-black font-bold border border-cyan-500/50 rounded-lg transition-all active:scale-95 uppercase tracking-widest text-sm">
+                    Отправить
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Плеер -->
@@ -146,6 +176,13 @@
                     progressFill: document.getElementById('progress-fill'),
                     timeCurrent: document.getElementById('time-current'),
                     timeTotal: document.getElementById('time-total'),
+                    
+                    // QA Modal elements
+                    btnOpenQA: document.getElementById('btn-open-qa'),
+                    btnCloseQA: document.getElementById('btn-close-qa'),
+                    qaModal: document.getElementById('qa-modal'),
+                    btnSendEmail: document.getElementById('btn-send-email'),
+                    qaText: document.getElementById('qa-text'),
                 },
 
                 // === Инициализация (запуск) ===
@@ -166,7 +203,6 @@
                 // === Основные методы (действия) ===
                 async fetchPlaylist() {
                     const fallbackTracks = [
-                        // ... Твой резервный список треков ...
                          { "id": "176471044996817", "title": "001 Ревизия  Временный эксклюзив", "artist": "ЕиЁ", "url": "./001_Ревизия_ Временный эксклюзив.mp3", "cover": "", "durationStr": "38:27" }, { "id": "17647104498620", "title": "Рано думать v2", "artist": "ЕиЁ", "url": "./Рано думать_v2.mp3", "cover": "", "durationStr": "4:34" }, { "id": "17647104498701", "title": "То же поле", "artist": "ЕиЁ", "url": "./То же поле.mp3", "cover": "", "durationStr": "3:47" }, { "id": "17647104498792", "title": "Калитка", "artist": "ЕиЁ", "url": "./Калитка.mp3", "cover": "", "durationStr": "3:43" }, { "id": "17647104498863", "title": "Дотянем до весны", "artist": "ЕиЁ", "url": "./Дотянем до весны.mp3", "cover": "", "durationStr": "3:43" }, { "id": "17647104498944", "title": "Когда широко, воздух прозрачен", "artist": "ЕиЁ", "url": "./Когда_широко,_воздух_прозрачен.mp3", "cover": "", "durationStr": "4:36" }, { "id": "17647104499015", "title": "Ми норм", "artist": "ЕиЁ", "url": "./Ми_норм.mp3", "cover": "", "durationStr": "4:18" }, { "id": "17647104499036", "title": "Антон Рекс   Прости ", "artist": "ЕиЁ", "url": "./Антон Рекс _ Прости .mp3", "cover": "", "durationStr": "4:27" }, { "id": "17647104499247", "title": "На сегодня Романыч лимит исчерпан", "artist": "ЕиЁ", "url": "./На_сегодня_Романыч_лимит_исчерпан.mp3", "cover": "", "durationStr": "4:10" }, { "id": "17647104499278", "title": "А дальше зима", "artist": "ЕиЁ", "url": "./А дальше зима.mp3", "cover": "", "durationStr": "4:00" }, { "id": "17647104499299", "title": "Годы, Месяцы  кавер", "artist": "ЕиЁ", "url": "./Годы, Месяцы_ кавер.mp3", "cover": "", "durationStr": "4:17" }, { "id": "176471044993110", "title": "Хуто Рок 2024", "artist": "ЕиЁ", "url": "./Хуто_Рок_2024.mp3", "cover": "", "durationStr": "57:54" }, { "id": "176471044993311", "title": "Rec Rec   Лухомань", "artist": "ЕиЁ", "url": "./Rec Rec _ Лухомань.mp3", "cover": "", "durationStr": "48:37" }, { "id": "176471044994012", "title": "Отголоски памяти улыбка на лице,", "artist": "ЕиЁ", "url": "./Отголоски памяти улыбка на лице,.mp3", "cover": "", "durationStr": "3:16" }, { "id": "176471044994713", "title": "Нейро-Кадриль  Гаражный Ответ ", "artist": "ЕиЁ", "url": "./Нейро-Кадриль _Гаражный Ответ_.mp3", "cover": "", "durationStr": "3:54" }, { "id": "176471044995314", "title": "ХОРОВОД   полный сбор ", "artist": "ЕиЁ", "url": "./ХОРОВОД _ полный сбор .mp3", "cover": "", "durationStr": "3:45" }, { "id": "176471044996015", "title": "Атмосфера", "artist": "ЕиЁ", "url": "./Атмосфера.mp3", "cover": "", "durationStr": "3:14" }, { "id": "176471044996616", "title": "Главная Песня", "artist": "ЕиЁ", "url": "./Главная Песня.mp3", "cover": "", "durationStr": "4:28" }, { "id": "176471044997518", "title": "Разговор у огня", "artist": "ЕиЁ", "url": "./Разговор у огня.mp3", "cover": "", "durationStr": "3:04" }, { "id": "176471044998119", "title": "Антон Рекс Я стёр подошвы до самой сути, ", "artist": "ЕиЁ", "url": "./Антон_Рекс_Я_стёр_подошвы_до_самой_сути,_.mp3", "cover": "", "durationStr": "5:07" }
                     ].sort((a, b) => Number(b.id) - Number(a.id));
 
@@ -284,6 +320,30 @@
                         this.dom.btnRepeat.title = "Mode: Repeat All";
                     }
                 },
+                
+                // === Логика Вопрос-Ответ ===
+                openQA() {
+                    this.dom.qaModal.classList.remove('hidden');
+                    document.body.classList.add('modal-open');
+                },
+                
+                closeQA() {
+                    this.dom.qaModal.classList.add('hidden');
+                    document.body.classList.remove('modal-open');
+                },
+                
+                sendEmail() {
+                    const text = this.dom.qaText.value.trim();
+                    if (!text) return;
+                    
+                    const subject = encodeURIComponent("Вопрос из PWA плеера");
+                    const body = encodeURIComponent(text);
+                    const email = "roofusman@gmail.com";
+                    
+                    window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+                    this.closeQA();
+                    this.dom.qaText.value = '';
+                },
 
                 // === Обновления UI ===
                 updatePlayPauseUI() {
@@ -394,6 +454,16 @@
                            const index = parseInt(trackItem.dataset.index, 10);
                            this.playTrack(index);
                        }
+                    });
+                    
+                    // QA Events
+                    this.dom.btnOpenQA.addEventListener('click', () => this.openQA());
+                    this.dom.btnCloseQA.addEventListener('click', () => this.closeQA());
+                    this.dom.btnSendEmail.addEventListener('click', () => this.sendEmail());
+                    
+                    // Закрытие модалки по клику вне контента
+                    this.dom.qaModal.addEventListener('click', (e) => {
+                        if (e.target === this.dom.qaModal) this.closeQA();
                     });
                     
                     // Сохраняем состояние при закрытии вкладки
