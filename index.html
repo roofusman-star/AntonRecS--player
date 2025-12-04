@@ -2,317 +2,493 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AntonRecS--player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ANTONRECS -- PLAYER</title>
+
+    <!-- PWA Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#111827">
+    <link rel="apple-touch-icon" href="icon.png"> 
+    <!-- <link rel="manifest" href="manifest.json"> -->
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        html, body {
-            height: 100%;
-            overflow: hidden; /* Запрещаем прокрутку всей страницы */
-        }
-        body {
-            background-color: #121212;
-            color: #E0E0E0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-        }
-        .track-item:hover {
-            background-color: #282828;
-        }
-        .track-item.active {
-            background-color: #334155;
-        }
-        .new-track-highlight {
-            border-left-color: #14B8A6 !important;
-            background-color: rgba(19, 78, 74, 0.2);
-        }
-        /* Стилизация скроллбара */
-        #playlist::-webkit-scrollbar {
-            width: 8px;
-        }
-        #playlist::-webkit-scrollbar-track {
-            background: #181818;
-        }
-        #playlist::-webkit-scrollbar-thumb {
-            background-color: #4B5563;
-            border-radius: 4px;
-        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        .progress-bar-container:hover .progress-bar-thumb { opacity: 1; }
+        .vertical-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; background: #38bdf8; cursor: pointer; border-radius: 50%; }
+        .vertical-slider::-moz-range-thumb { width: 16px; height: 16px; background: #38bdf8; cursor: pointer; border-radius: 50%; }
+        .active-icon-color { color: #38bdf8; }
     </style>
 </head>
-<body>
+<body class="bg-gray-900 text-gray-300 font-sans flex flex-col h-screen overflow-hidden antialiased">
 
-    <div class="player-container w-full max-w-2xl h-full flex flex-col shadow-2xl bg-[#181818] rounded-lg">
-        <header class="p-4 border-b border-gray-700 flex-shrink-0">
-            <h1 class="text-xl font-bold text-center tracking-wider">
-                <span class="text-teal-400">●</span> ANTONRECS--PLAYER
-            </h1>
-        </header>
-
-        <ul id="playlist" class="divide-y divide-gray-800 flex-grow overflow-y-auto">
-            <!-- Треки будут вставлены сюда и будут прокручиваться здесь -->
-        </ul>
-
-        <footer class="bg-black bg-opacity-50 backdrop-blur-md p-3 flex-shrink-0">
-            <div class="flex items-center">
-                <div class="w-12 h-12 bg-gray-700 rounded-md mr-4 flex-shrink-0">
-                    <img id="footer-cover" src="" class="w-full h-full object-cover rounded-md hidden">
-                </div>
-                <div class="flex-grow overflow-hidden">
-                    <p id="footer-title" class="font-semibold truncate text-white">Выберите трек</p>
-                    <p id="footer-artist" class="text-sm text-gray-400">...</p>
-                </div>
+    <!-- Header -->
+    <header class="p-4 flex-shrink-0">
+        <h1 class="text-xl font-bold text-center text-sky-400 tracking-wider">
+            <span class="text-white font-light">ANTONRECS</span> -- PLAYER
+        </h1>
+    </header>
+    
+    <!-- Playlist & Controls -->
+    <main class="flex-grow flex flex-col overflow-hidden">
+        <!-- Playlist Controls -->
+        <div class="px-4 pb-2 flex items-center justify-between gap-3 flex-shrink-0">
+            <div id="search-container" class="relative flex-grow">
+                <input type="text" id="searchInput" placeholder="Поиск..." class="bg-gray-800 border border-gray-700 rounded-full w-full px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 hidden">
             </div>
-            <div class="mt-2">
-                <div id="progress-container" class="w-full bg-gray-600 rounded-full h-1.5 cursor-pointer">
-                    <div id="progress-bar" class="bg-teal-400 h-1.5 rounded-full" style="width: 0%"></div>
-                </div>
-                <div class="flex justify-between text-xs text-gray-400 mt-1">
-                    <span id="current-time">0:00</span>
-                    <span id="duration">0:00</span>
-                </div>
+            <div class="flex items-center gap-4">
+                <button id="searchBtn" class="focus:outline-none"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg></button>
+                <button id="sortBtn" class="focus:outline-none"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9M3 12h9m-9 4h13m0-4l3-3m0 0l3 3m-3-3v12" /></svg></button>
+                <button id="filterFavoritesBtn" class="focus:outline-none"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.98 9.11c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg></button>
             </div>
-            <div class="flex items-center justify-center space-x-6 mt-2">
-                <button id="prev-btn" class="text-gray-400 hover:text-white transition-colors">
-                    <i class="fas fa-step-backward fa-lg"></i>
-                </button>
-                <button id="play-pause-btn" class="bg-teal-400 text-black rounded-full w-12 h-12 flex items-center justify-center shadow-lg hover:bg-teal-300 transition-colors">
-                    <i id="play-pause-icon" class="fas fa-play fa-lg"></i>
-                </button>
-                <button id="next-btn" class="text-gray-400 hover:text-white transition-colors">
-                    <i class="fas fa-step-forward fa-lg"></i>
-                </button>
+        </div>
+
+        <!-- Playlist -->
+        <div id="playlist-container" class="overflow-y-auto px-2 flex-grow">
+            <!-- Tracks will be rendered here -->
+        </div>
+    </main>
+
+    <!-- Player Bar -->
+    <footer class="bg-gray-800/50 backdrop-blur-sm p-3 flex-shrink-0">
+        <div class="flex items-center gap-4">
+            <div id="current-track-info" class="flex-grow min-w-0">
+                <p id="current-track-title" class="font-bold text-sm truncate text-white">Выберите трек</p>
+                <p id="current-track-artist" class="text-xs text-gray-400 truncate">...</p>
             </div>
-        </footer>
-    </div>
-
-    <audio id="audio-player"></audio>
-
-    <script>
-        // ... (весь JavaScript код остается без изменений, он здесь для полноты) ...
-        let playlist = [];
-        let currentTrackIndex = 0;
-        let isPlaying = false;
+        </div>
         
-        const fallbackTracks = [
-          { "id": "1764920400001", "title": "Отголоски памяти улыбка на лице,", "artist": "ЕиЁ", "url": "./Отголоски_памяти_улыбка_на_лице_.mp3", "cover": "", "durationStr": "3:16", "dateAdded": "2025-12-04", "isFavorite": false },
-          { "id": "176471044998119", "title": "Антон Рекс Я стёр подошвы до самой сути,", "artist": "ЕиЁ", "url": "./Антон_Рекс_Я_стёр_подошвы_до_самой_сути,_.mp3", "cover": "", "durationStr": "5:07", "dateAdded": "2025-12-03", "isFavorite": false },
-          { "id": "17648434702740", "title": "Вечное Сейчас 0 fl", "artist": "ЕиЁ", "url": "./Вечное Сейчас_0_fl.mp3", "cover": "", "durationStr": "13:50", "dateAdded": "2025-12-03", "isFavorite": true },
-          { "id": "1764920400002", "title": "Разговор у огня", "artist": "ЕиЁ", "url": "./Разговор_у_огня.mp3", "cover": "", "durationStr": "3:04", "dateAdded": "2025-11-20", "isFavorite": false },
-          { "id": "1764920400003", "title": "001 Ревизия Временный эксклюзив", "artist": "ЕиЁ", "url": "./001_Ревизия_Временный_эксклюзив.mp3", "cover": "", "durationStr": "38:27", "dateAdded": "2025-11-15", "isFavorite": false },
-          { "id": "1764920400004", "title": "Главная Песня", "artist": "ЕиЁ", "url": "./Главная_Песня.mp3", "cover": "", "durationStr": "4:28", "dateAdded": "2025-11-10", "isFavorite": false },
-          { "id": "1764920400005", "title": "Атмосфера", "artist": "ЕиЁ", "url": "./Атмосфера.mp3", "cover": "", "durationStr": "1:14", "dateAdded": "2025-11-05", "isFavorite": false },
-          { "id": "1764920400006", "title": "ХОРОВОД полный сбор", "artist": "ЕиЁ", "url": "./ХОРОВОД_полный_сбор.mp3", "cover": "", "durationStr": "3:45", "dateAdded": "2025-11-01", "isFavorite": false },
-          { "id": "1764920400007", "title": "Нейро-Кадриль Гаражный Ответ", "artist": "ЕиЁ", "url": "./Нейро-Кадриль_Гаражный_Ответ.mp3", "cover": "", "durationStr": "3:54", "dateAdded": "2025-10-25", "isFavorite": false }
-        ];
+        <!-- Progress Bar -->
+        <div class="pt-2">
+            <div id="progress-bar-container" class="w-full bg-gray-700 rounded-full h-1.5 cursor-pointer">
+                <div id="progress-bar" class="bg-sky-400 h-1.5 rounded-full w-0"></div>
+            </div>
+            <div class="flex justify-between text-xs text-gray-400 mt-1">
+                <span id="current-time">0:00</span>
+                <span id="total-time">0:00</span>
+            </div>
+        </div>
 
-        const audio = document.getElementById('audio-player');
-        const playlistElement = document.getElementById('playlist');
-        const playPauseBtn = document.getElementById('play-pause-btn');
-        const playPauseIcon = document.getElementById('play-pause-icon');
-        const nextBtn = document.getElementById('next-btn');
-        const prevBtn = document.getElementById('prev-btn');
-        const progressBar = document.getElementById('progress-bar');
-        const progressContainer = document.getElementById('progress-container');
-        const currentTimeEl = document.getElementById('current-time');
-        const durationEl = document.getElementById('duration');
-        const footerTitle = document.getElementById('footer-title');
-        const footerArtist = document.getElementById('footer-artist');
-        const footerCover = document.getElementById('footer-cover');
+        <!-- Controls -->
+        <div class="flex items-center justify-between mt-1">
+            <button id="shuffleBtn" class="p-2 focus:outline-none"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" transform="rotate(90 12 12) translate(-2, -2) scale(0.8)"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" transform="rotate(90 12 12) translate(2, 2) scale(0.8)"/></svg></button>
+            
+            <div class="flex items-center gap-4">
+                <button id="prevBtn" class="p-2 focus:outline-none"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="currentColor" viewBox="0 0 20 20"><path d="M8.445 14.832A1 1 0 0010 14.023V5.977a1 1 0 00-1.555-.832L4.12 9.168a1 1 0 000 1.664l4.325 4.001zM11.555 5.168A1 1 0 0113 5.977v8.046a1 1 0 01-1.445.894l-4.325-4.001a1 1 0 010-1.788l4.325-4.001z"/></svg></button>
+                <button id="playPauseBtn" class="p-2 bg-sky-500 rounded-full text-gray-900 focus:outline-none w-14 h-14 flex items-center justify-center">
+                    <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="currentColor" viewBox="0 0 20 20"><path d="M4.018 15.59a1.5 1.5 0 01-2.25-1.305V5.715a1.5 1.5 0 012.25-1.305l8.665 4.285a1.5 1.5 0 010 2.61L4.018 15.59z"/></svg>
+                    <svg id="pauseIcon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 hidden" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 4h3a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1zm7 0h3a1 1 0 011 1v10a1 1 0 01-1 1h-3a1 1 0 01-1-1V5a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                </button>
+                <button id="nextBtn" class="p-2 focus:outline-none"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="currentColor" viewBox="0 0 20 20"><path d="M11.555 5.168A1 1 0 0010 5.977v8.046a1 1 0 001.555.894l4.325-4.001a1 1 0 000-1.788l-4.325-4.001zM8.445 14.832A1 1 0 017 14.023V5.977a1 1 0 011.445-.894l4.325 4.001a1 1 0 010 1.788l-4.325 4.001z"/></svg></button>
+            </div>
+            
+            <div class="relative">
+                <button id="repeatBtn" class="p-2 focus:outline-none">
+                    <svg id="repeatIconNone" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 9a9 9 0 0114.13-6.36M20 15a9 9 0 01-14.13 6.36"/></svg>
+                    <svg id="repeatIconAll" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden active-icon-color" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 9a9 9 0 0114.13-6.36M20 15a9 9 0 01-14.13 6.36"/></svg>
+                    <svg id="repeatIconOne" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden active-icon-color" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM8.707 6.293a1 1 0 00-1.414 1.414L8.586 9H6a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414l-3-3z" clip-rule="evenodd"/><text x="8" y="16" font-size="10" font-weight="bold" fill="currentColor">1</text></svg>
+                </button>
+            </div>
 
-        async function fetchPlaylist() {
-            try {
-                const response = await fetch('tracks.json');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const data = await response.json();
-                playlist = data;
-            } catch (error) {
-                console.warn('Could not load tracks.json. Using default tracks.', error);
-                playlist = fallbackTracks;
-            }
+            <div id="volume-container" class="relative flex items-center">
+                 <button id="volumeBtn" class="p-2 focus:outline-none">
+                    <svg id="volume-icon-high" class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.108 12 5v14c0 .892-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                    <svg id="volume-icon-low" class="h-6 w-6 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.108 12 5v14c0 .892-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                    <svg id="volume-icon-muted" class="h-6 w-6 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.108 12 5v14c0 .892-1.077 1.337-1.707.707L5.586 15zM17 14l-4-4m0 4l4-4"/></svg>
+                </button>
+                <div id="volume-slider-container" class="absolute bottom-12 right-0 bg-gray-800 p-2 rounded-lg shadow-lg hidden">
+                    <input type="range" id="volumeSlider" class="vertical-slider" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical;" min="0" max="1" step="0.01">
+                </div>
+            </div>
+        </div>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // DOM Elements
+    const playlistContainer = document.getElementById('playlist-container');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const playIcon = document.getElementById('playIcon');
+    const pauseIcon = document.getElementById('pauseIcon');
+    const nextBtn = document.getElementById('nextBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const repeatBtn = document.getElementById('repeatBtn');
+    const progressBar = document.getElementById('progress-bar');
+    const progressBarContainer = document.getElementById('progress-bar-container');
+    const currentTimeEl = document.getElementById('current-time');
+    const totalTimeEl = document.getElementById('total-time');
+    const currentTrackTitleEl = document.getElementById('current-track-title');
+    const currentTrackArtistEl = document.getElementById('current-track-artist');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const sortBtn = document.getElementById('sortBtn');
+    const filterFavoritesBtn = document.getElementById('filterFavoritesBtn');
+    const volumeBtn = document.getElementById('volumeBtn');
+    const volumeSliderContainer = document.getElementById('volume-slider-container');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const volumeIcons = {
+        high: document.getElementById('volume-icon-high'),
+        low: document.getElementById('volume-icon-low'),
+        muted: document.getElementById('volume-icon-muted'),
+    };
+    const repeatIcons = {
+        none: document.getElementById('repeatIconNone'),
+        all: document.getElementById('repeatIconAll'),
+        one: document.getElementById('repeatIconOne'),
+    };
+
+    // State
+    let playlist = [];
+    let shuffledPlaylist = [];
+    let currentIndex = -1;
+    let isPlaying = false;
+    let isShuffled = false;
+    let repeatMode = 'none'; // 'none', 'all', 'one'
+    let sortMode = 'date'; // 'date', 'az', 'za'
+    let favoritesOnly = false;
+    let favorites = {};
+
+    const audio = new Audio();
+
+    // --- Core Logic ---
+
+    async function init() {
+        loadState();
+        try {
+            const response = await fetch('./tracks.json');
+            if (!response.ok) throw new Error('Network response was not ok');
+            playlist = await response.json();
             renderPlaylist();
+            if (currentIndex !== -1) {
+                loadTrack(currentIndex, false);
+            }
+        } catch (error) {
+            console.error("Could not fetch tracks.json:", error);
+            playlistContainer.innerHTML = `<p class="text-center text-red-400">Ошибка загрузки плейлиста.</p>`;
+        }
+    }
+
+    function renderPlaylist() {
+        let displayList = [...playlist];
+
+        // 1. Filter
+        if (favoritesOnly) {
+            displayList = displayList.filter(track => favorites[track.id]);
+        }
+        if (searchInput.value) {
+            const query = searchInput.value.toLowerCase();
+            displayList = displayList.filter(track => track.title.toLowerCase().includes(query));
+        }
+
+        // 2. Sort
+        switch (sortMode) {
+            case 'az':
+                displayList.sort((a, b) => a.title.localeCompare(b.title));
+                break;
+            case 'za':
+                displayList.sort((a, b) => b.title.localeCompare(a.title));
+                break;
+            case 'date':
+            default:
+                displayList.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+                break;
         }
         
-        function renderPlaylist() {
-            playlistElement.innerHTML = '';
-            const todayString = new Date().toISOString().split('T')[0];
+        playlistContainer.innerHTML = '';
+        if (displayList.length === 0) {
+            playlistContainer.innerHTML = `<p class="text-center text-gray-500">Ничего не найдено.</p>`;
+            return;
+        }
 
-            playlist.forEach((track, index) => {
-                const isNew = track.dateAdded === todayString;
-                const li = document.createElement('li');
-                li.className = `track-item flex items-center p-3 cursor-pointer transition-all duration-200 ease-in-out border-l-4 ${isNew ? 'new-track-highlight' : 'border-transparent'}`;
-                li.dataset.index = index;
+        const now = new Date();
+        displayList.forEach((track, index) => {
+            const trackDate = new Date(track.dateAdded);
+            const daysDiff = (now - trackDate) / (1000 * 3600 * 24);
+            let dateColorClass = '';
+            if (daysDiff <= 7) dateColorClass = 'text-green-400';
+            else if (daysDiff <= 30) dateColorClass = 'text-yellow-400';
 
-                const starIconClass = track.isFavorite 
-                    ? 'fas fa-star text-yellow-400' 
-                    : 'far fa-star text-gray-500';
+            const isFavorite = favorites[track.id];
+            
+            const trackEl = document.createElement('div');
+            trackEl.className = `p-3 flex items-center justify-between gap-3 rounded-lg cursor-pointer transition-colors duration-200 hover:bg-gray-800/80 ${track.id === (playlist[currentIndex] || {}).id ? 'bg-gray-800' : ''}`;
+            trackEl.dataset.trackId = track.id;
 
-                li.innerHTML = `
-                    <div class="w-8 text-center text-gray-400 text-sm mr-3">${String(index + 1).padStart(2, '0')}</div>
-                    <div class="flex-grow">
-                        <p class="font-medium text-white truncate">${track.title}</p>
-                        <div class="flex items-center">
-                            <p class="text-sm text-gray-400">${track.artist}</p>
-                            <p class="text-xs text-gray-500 ml-2">${track.dateAdded || ''}</p>
-                        </div>
+            trackEl.innerHTML = `
+                <div class="flex items-center gap-4 min-w-0">
+                    <span class="text-sm font-mono text-gray-500">${String(playlist.findIndex(p => p.id === track.id) + 1).padStart(2, '0')}</span>
+                    <div class="min-w-0">
+                        <p class="truncate font-semibold text-white">${track.title}</p>
+                        <p class="text-xs text-gray-400">${track.artist} <span class="${dateColorClass}">${track.dateAdded}</span></p>
                     </div>
-                    <button class="favorite-btn p-2 text-lg mr-2 hover:text-yellow-300 transition-colors" data-id="${track.id}">
-                        <i class="${starIconClass}"></i>
+                </div>
+                <div class="flex items-center gap-4 flex-shrink-0">
+                    <span class="text-sm font-mono text-gray-500">${track.durationStr}</span>
+                    <button class="favorite-btn p-1 focus:outline-none" data-track-id="${track.id}">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ${isFavorite ? 'text-sky-400' : 'text-gray-600'}" viewBox="0 0 20 20" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
                     </button>
-                    <span class="text-sm text-gray-400">${track.durationStr}</span>
-                `;
-                playlistElement.appendChild(li);
-            });
-        }
+                </div>
+            `;
+            playlistContainer.appendChild(trackEl);
+        });
+    }
+
+    function loadTrack(index, autoplay = true) {
+        currentIndex = index;
+        const track = isShuffled ? shuffledPlaylist[index] : playlist[index];
+        if (!track) return;
         
-        function toggleFavorite(trackId) {
-            const track = playlist.find(t => t.id === trackId);
-            if (track) {
-                track.isFavorite = !track.isFavorite;
-                renderPlaylist(); 
-                // В будущем здесь будет код для сохранения в localStorage
-            }
-        }
-
-        function loadTrack(index) {
-            const track = playlist[index];
-            audio.src = track.url;
-            currentTrackIndex = index;
-            updateFooterUI(track);
-            updateActiveTrack();
-        }
-
-        function playTrack() {
-            isPlaying = true;
-            audio.play().catch(e => console.error("Ошибка воспроизведения:", e));
-            playPauseIcon.classList.replace('fa-play', 'fa-pause');
-        }
-
-        function pauseTrack() {
-            isPlaying = false;
-            audio.pause();
-            playPauseIcon.classList.replace('fa-pause', 'fa-play');
-        }
-
-        function updateFooterUI(track) {
-            footerTitle.textContent = track.title;
-            footerArtist.textContent = track.artist;
-            if (track.cover) {
-                footerCover.src = track.cover;
-                footerCover.classList.remove('hidden');
-            } else {
-                footerCover.classList.add('hidden');
-            }
-        }
-
-        function updateActiveTrack() {
-            document.querySelectorAll('.track-item').forEach(item => {
-                item.classList.remove('active', 'text-teal-400');
-            });
-            const activeItem = document.querySelector(`.track-item[data-index="${currentTrackIndex}"]`);
-            if (activeItem) {
-                activeItem.classList.add('active', 'text-teal-400');
-                activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-        }
-
-        function formatTime(seconds) {
-            if (isNaN(seconds)) return "0:00";
-            const minutes = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${minutes}:${String(secs).padStart(2, '0')}`;
-        }
-
-        playPauseBtn.addEventListener('click', () => {
-            if (isPlaying) {
-                pauseTrack();
-            } else {
-                if (audio.src) {
-                   playTrack();
-                } else if (playlist.length > 0) {
-                   loadTrack(0);
-                   playTrack();
-                }
-            }
+        audio.src = track.url;
+        currentTrackTitleEl.textContent = track.title;
+        currentTrackArtistEl.textContent = track.artist;
+        
+        document.querySelectorAll('#playlist-container > div').forEach(el => {
+            el.classList.toggle('bg-gray-800', el.dataset.trackId === track.id);
         });
 
-        nextBtn.addEventListener('click', () => {
-            if(playlist.length === 0) return;
-            currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
-            loadTrack(currentTrackIndex);
+        if (autoplay) {
             playTrack();
-        });
+        }
+        saveState();
+    }
 
-        prevBtn.addEventListener('click', () => {
-            if(playlist.length === 0) return;
-            currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
-            loadTrack(currentTrackIndex);
-            playTrack();
-        });
+    function playTrack() {
+        isPlaying = true;
+        audio.play();
+        playIcon.classList.add('hidden');
+        pauseIcon.classList.remove('hidden');
+    }
 
-        audio.addEventListener('timeupdate', () => {
-            const { currentTime, duration } = audio;
-            progressBar.style.width = `${(currentTime / duration) * 100}%`;
-            currentTimeEl.textContent = formatTime(currentTime);
-        });
+    function pauseTrack() {
+        isPlaying = false;
+        audio.pause();
+        playIcon.classList.remove('hidden');
+        pauseIcon.classList.add('hidden');
+    }
+    
+    function nextTrack() {
+        let newIndex = currentIndex + 1;
+        const currentList = isShuffled ? shuffledPlaylist : playlist;
+        if (newIndex >= currentList.length) {
+            newIndex = 0;
+        }
+        loadTrack(newIndex);
+    }
+
+    function prevTrack() {
+        let newIndex = currentIndex - 1;
+        const currentList = isShuffled ? shuffledPlaylist : playlist;
+        if (newIndex < 0) {
+            newIndex = currentList.length - 1;
+        }
+        loadTrack(newIndex);
+    }
+    
+    function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateProgressBar() {
+        if (audio.duration) {
+            const progressPercent = (audio.currentTime / audio.duration) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+            currentTimeEl.textContent = formatTime(audio.currentTime);
+            totalTimeEl.textContent = formatTime(audio.duration);
+        }
+    }
+    
+    // --- State Management ---
+    
+    function saveState() {
+        localStorage.setItem('antonrecs_player_state', JSON.stringify({
+            currentIndex,
+            currentTime: audio.currentTime,
+            volume: audio.volume,
+            isShuffled,
+            repeatMode,
+            sortMode,
+            favoritesOnly,
+        }));
+        localStorage.setItem('antonrecs_player_favorites', JSON.stringify(favorites));
+    }
+
+    function loadState() {
+        const state = JSON.parse(localStorage.getItem('antonrecs_player_state'));
+        const savedFavorites = JSON.parse(localStorage.getItem('antonrecs_player_favorites'));
         
-        audio.addEventListener('loadedmetadata', () => {
-             durationEl.textContent = formatTime(audio.duration);
-        });
-        
-        audio.addEventListener('ended', () => {
-            nextBtn.click();
-        });
+        if (savedFavorites) favorites = savedFavorites;
 
-        progressContainer.addEventListener('click', (e) => {
-            const width = progressContainer.clientWidth;
-            const clickX = e.offsetX;
-            const duration = audio.duration;
-            if(duration){
-               audio.currentTime = (clickX / width) * duration;
-            }
-        });
-
-        playlistElement.addEventListener('click', (e) => {
-            const trackItem = e.target.closest('.track-item');
-            const favoriteButton = e.target.closest('.favorite-btn');
-
-            if (favoriteButton) {
-                toggleFavorite(favoriteButton.dataset.id);
-                return;
-            }
-
-            if (trackItem) {
-                const index = parseInt(trackItem.dataset.index);
-                if (index !== currentTrackIndex || !isPlaying) {
-                    loadTrack(index);
-                    playTrack();
-                } else {
-                    pauseTrack();
-                }
-            }
-        });
-
-        async function init() {
-            await fetchPlaylist();
-            if (playlist.length > 0) {
-                // Предзагружаем инфу о первом треке, но не сам файл
-                const firstTrack = playlist[0];
-                updateFooterUI(firstTrack);
-                 // Создаем временный аудио объект, чтобы получить длительность
-                const tempAudio = new Audio(firstTrack.url);
-                tempAudio.addEventListener('loadedmetadata', () => {
-                    durationEl.textContent = formatTime(tempAudio.duration);
-                });
+        if (state) {
+            currentIndex = state.currentIndex || 0;
+            audio.volume = state.volume !== undefined ? state.volume : 1;
+            volumeSlider.value = audio.volume;
+            isShuffled = state.isShuffled || false;
+            repeatMode = state.repeatMode || 'none';
+            sortMode = state.sortMode || 'date';
+            favoritesOnly = state.favoritesOnly || false;
+            
+            updateShuffleUI();
+            updateRepeatUI();
+            updateFilterFavoritesUI();
+            updateVolumeUI();
+            
+            if (state.currentTime) {
+                audio.addEventListener('loadedmetadata', () => {
+                    audio.currentTime = state.currentTime;
+                }, { once: true });
             }
         }
+    }
 
-        document.addEventListener('DOMContentLoaded', init);
-    </script>
+    // --- UI Updaters ---
+
+    function updateShuffleUI() {
+        shuffleBtn.classList.toggle('active-icon-color', isShuffled);
+    }
+
+    function updateRepeatUI() {
+        Object.values(repeatIcons).forEach(icon => icon.classList.add('hidden'));
+        repeatIcons[repeatMode].classList.remove('hidden');
+    }
+
+    function updateVolumeUI() {
+        const vol = audio.volume;
+        const muted = audio.muted || vol === 0;
+        Object.values(volumeIcons).forEach(icon => icon.classList.add('hidden'));
+        if(muted) volumeIcons.muted.classList.remove('hidden');
+        else if(vol > 0.5) volumeIcons.high.classList.remove('hidden');
+        else volumeIcons.low.classList.remove('hidden');
+    }
+    
+    function updateFilterFavoritesUI() {
+        filterFavoritesBtn.classList.toggle('active-icon-color', favoritesOnly);
+    }
+
+    // --- Event Handlers ---
+
+    playPauseBtn.addEventListener('click', () => isPlaying ? pauseTrack() : playTrack());
+    nextBtn.addEventListener('click', nextTrack);
+    prevBtn.addEventListener('click', prevTrack);
+    
+    audio.addEventListener('timeupdate', updateProgressBar);
+    audio.addEventListener('ended', () => {
+        if (repeatMode === 'one') {
+            audio.currentTime = 0;
+            playTrack();
+        } else if (currentIndex === (isShuffled ? shuffledPlaylist.length : playlist.length) - 1 && repeatMode !== 'all') {
+            pauseTrack();
+        } else {
+            nextTrack();
+        }
+    });
+    
+    progressBarContainer.addEventListener('click', (e) => {
+        const width = progressBarContainer.clientWidth;
+        const clickX = e.offsetX;
+        audio.currentTime = (clickX / width) * audio.duration;
+    });
+
+    playlistContainer.addEventListener('click', (e) => {
+        const trackEl = e.target.closest('[data-track-id]');
+        const favoriteBtn = e.target.closest('.favorite-btn');
+        
+        if (favoriteBtn) {
+            const trackId = favoriteBtn.dataset.trackId;
+            favorites[trackId] = !favorites[trackId];
+            saveState();
+            renderPlaylist(); // Re-render to update star and potentially filter
+            return;
+        }
+
+        if (trackEl) {
+            const trackId = trackEl.dataset.trackId;
+            const originalIndex = playlist.findIndex(t => t.id === trackId);
+            
+            if (isShuffled) {
+                const shuffledIndex = shuffledPlaylist.findIndex(t => t.id === trackId);
+                loadTrack(shuffledIndex);
+            } else {
+                loadTrack(originalIndex);
+            }
+        }
+    });
+    
+    shuffleBtn.addEventListener('click', () => {
+        isShuffled = !isShuffled;
+        if (isShuffled) {
+            const currentTrackId = playlist[currentIndex]?.id;
+            shuffledPlaylist = [...playlist].sort(() => Math.random() - 0.5);
+            // Put current track at the beginning of shuffled list
+            const currentInShuffled = shuffledPlaylist.findIndex(t => t.id === currentTrackId);
+            if (currentInShuffled > -1) {
+                const [item] = shuffledPlaylist.splice(currentInShuffled, 1);
+                shuffledPlaylist.unshift(item);
+            }
+            currentIndex = 0;
+        }
+        updateShuffleUI();
+        saveState();
+    });
+
+    repeatBtn.addEventListener('click', () => {
+        const modes = ['none', 'all', 'one'];
+        const currentModeIndex = modes.indexOf(repeatMode);
+        repeatMode = modes[(currentModeIndex + 1) % modes.length];
+        updateRepeatUI();
+        saveState();
+    });
+    
+    searchBtn.addEventListener('click', () => {
+        searchInput.classList.toggle('hidden');
+        if (!searchInput.classList.contains('hidden')) {
+            searchInput.focus();
+        }
+    });
+
+    searchInput.addEventListener('input', renderPlaylist);
+
+    sortBtn.addEventListener('click', () => {
+        const modes = ['date', 'az', 'za'];
+        const currentModeIndex = modes.indexOf(sortMode);
+        sortMode = modes[(currentModeIndex + 1) % modes.length];
+        renderPlaylist();
+        saveState();
+    });
+    
+    filterFavoritesBtn.addEventListener('click', () => {
+        favoritesOnly = !favoritesOnly;
+        updateFilterFavoritesUI();
+        renderPlaylist();
+        saveState();
+    });
+    
+    volumeBtn.addEventListener('click', () => {
+        volumeSliderContainer.classList.toggle('hidden');
+    });
+
+    volumeSlider.addEventListener('input', (e) => {
+        audio.volume = e.target.value;
+        audio.muted = audio.volume === 0;
+        updateVolumeUI();
+        saveState();
+    });
+
+    audio.addEventListener('volumechange', updateVolumeUI);
+    
+    window.addEventListener('beforeunload', saveState);
+
+    // --- Init ---
+    init();
+});
+</script>
+
 </body>
 </html>
