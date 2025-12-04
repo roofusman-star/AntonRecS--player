@@ -224,7 +224,8 @@
             // UI State
             searchQuery: '',
             filterMode: 'all', // 'all' | 'favorites'
-            favorites: {} // Map of ID -> boolean
+            favorites: {}, // Map of ID -> boolean
+            cachedUrls: new Set() // Tracks available offline
         };
 
         const audio = document.getElementById('audio-player');
@@ -301,6 +302,33 @@
                 loadTrack(state.playlist[0].id, false); // Load first track but don't play
             }
             
+            checkCacheStatus(); // Initial check
+            renderPlaylist();
+        }
+
+        // --- Cache Logic ---
+        async function checkCacheStatus() {
+            if (!('caches' in window)) return;
+            
+            // Check all tracks in playlist against Cache Storage
+            const updates = state.playlist.map(async (track) => {
+                if(state.cachedUrls.has(track.url)) return; // skip if already known
+
+                try {
+                    // Match against any cache
+                    const match = await caches.match(track.url);
+                    if (match) {
+                        state.cachedUrls.add(track.url);
+                    }
+                } catch(e) { 
+                    // ignore errors
+                }
+            });
+
+            await Promise.all(updates);
+            // Re-render only if we found cached items to avoid flicker, 
+            // but for simplicity we re-render to ensure icons show up.
+            // A smarter approach would be reactive, but direct render is fine for < 100 tracks.
             renderPlaylist();
         }
 
@@ -351,6 +379,7 @@
             list.forEach((track, index) => {
                 const isFav = !!state.favorites[track.id];
                 const isActive = track.id === state.currentTrackId;
+                const isCached = state.cachedUrls.has(track.url);
                 
                 const li = document.createElement('li');
                 li.className = `track-item flex items-center px-4 py-3 cursor-pointer ${isActive ? 'active' : ''}`;
@@ -380,7 +409,10 @@
                         <p class="text-xs text-gray-500 truncate">${track.artist}</p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="text-xs text-gray-600 font-mono hidden sm:block">${track.durationStr}</span>
+                        <div class="flex flex-col items-end">
+                             <span class="text-xs text-gray-600 font-mono hidden sm:block">${track.durationStr}</span>
+                             ${isCached ? '<i class="fas fa-circle-check text-teal-500/70 text-[10px] mt-0.5" title="Скачано"></i>' : ''}
+                        </div>
                         <button class="fav-btn p-2 text-gray-600 hover:text-red-500 transition-colors ${isFav ? 'text-red-500' : ''}" onclick="toggleFavorite('${track.id}')">
                             <i class="${isFav ? 'fas' : 'far'} fa-heart ${isFav ? 'heart-anim' : ''}"></i>
                         </button>
@@ -489,6 +521,11 @@
         els.nextBtn.onclick = () => changeTrack('next');
         els.prevBtn.onclick = () => changeTrack('prev');
         audio.onended = () => changeTrack('next'); // Auto advance uses 'next' logic
+        
+        // Check cache when audio successfully loads (it might have been cached by SW)
+        audio.oncanplaythrough = () => {
+            setTimeout(checkCacheStatus, 1000);
+        };
 
         // Search
         els.searchInput.addEventListener('input', (e) => {
