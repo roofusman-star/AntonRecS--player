@@ -1,3 +1,484 @@
-{
-  "code": "<!DOCTYPE html>\n<html lang=\"ru\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>AntonRecS--player</title>\n    <!-- Tailwind CSS -->\n    <script src=\"https://cdn.tailwindcss.com\"></script>\n    <!-- Шрифт -->\n    <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap\" rel=\"stylesheet\">\n    <style>\n        body {\n            font-family: 'JetBrains Mono', monospace;\n            background-color: #050505;\n            color: #e0e0e0;\n            padding-bottom: 160px; /* Отступ снизу для плеера */\n            -webkit-tap-highlight-color: transparent;\n        }\n        /* Кастомный скроллбар */\n        ::-webkit-scrollbar { width: 6px; }\n        ::-webkit-scrollbar-track { background: #000; }\n        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }\n        ::-webkit-scrollbar-thumb:hover { background: #06b6d4; }\n        /* Стили для ползунка */\n        input[type=range] { -webkit-appearance: none; background: transparent; }\n        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 0; width: 0; }\n        input[type=range]:focus { outline: none; }\n        /* Анимация обложки */\n        @keyframes spin-slow {\n            from { transform: rotate(0deg); }\n            to { transform: rotate(360deg); }\n        }\n        .animate-spin-slow { animation: spin-slow 8s linear infinite; }\n        /* Эффект нажатия на трек */\n        .track-item.active {\n            background-color: rgba(6, 182, 212, 0.1);\n            border-color: rgba(6, 182, 212, 0.5);\n            box-shadow: 0 0 15px rgba(6, 182, 212, 0.1);\n        }\n        .track-item.active h4 { color: #22d3ee; }\n        /* Визуалайзер */\n        .bar { width: 4px; background-color: #22d3ee; animation: bounce 0.5s infinite alternate; }\n        @keyframes bounce {\n            10% { height: 10%; }\n            100% { height: 100%; }\n        }\n        /* Модальное окно */\n        .modal-open { overflow: hidden; }\n        /* Анимация загрузки - ДОБАВЛЕНО АНТОНОМ РЕКСОМ */\n        .loading-pulse {\n            animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;\n        }\n        @keyframes pulse {\n            0%, 100% { opacity: 1; }\n            50% { opacity: .5; }\n        }\n    </style>\n</head>\n<body class=\"selection:bg-cyan-500 selection:text-black min-h-screen\">\n\n    <!-- Фоновая атмосфера -->\n    <div class=\"fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,_#1a1a1a_0%,_#000000_100%)] -z-10 pointer-events-none\"></div>\n    <div class=\"fixed top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50\"></div>\n\n    <!-- Шапка -->\n    <header class=\"sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10 px-6 py-4\">\n        <div class=\"max-w-2xl mx-auto flex items-center justify-between\">\n            <div class=\"flex items-center gap-2\">\n                <div class=\"w-3 h-3 bg-cyan-500 rounded-full shadow-[0_0_10px_#06b6d4] animate-pulse\"></div>\n                <h1 class=\"text-xl font-bold tracking-widest uppercase font-mono\">\n                    AntonRecS<span class=\"text-cyan-400\">--player</span>\n                </h1>\n            </div>\n            \n            <div class=\"flex items-center gap-4\">\n                 <!-- Кнопка Вопрос -->\n                <button id=\"btn-open-qa\" class=\"text-gray-400 hover:text-cyan-400 transition-colors p-1\" title=\"Задать вопрос автору\">\n                    <svg xmlns=\"http://www.w3.org/2000/svg\" class=\"w-6 h-6\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"></path><path d=\"M9.82 9.05a2 2 0 0 1 2.91 1.7c0 1.29-.87 1.84-1.27 2.15-.36.27-.6.55-.42 1.1\"></path><path d=\"M11 15h.01\"></path></svg>\n                </button>\n                <!-- Кнопка Скачать (заглушка иконки из оригинала) -->\n                <svg class=\"w-6 h-6 text-gray-500 hidden sm:block\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 15V6\"/><path d=\"M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z\"/><path d=\"M12 12H3\"/><path d=\"M16 6H3\"/><path d=\"M12 18H3\"/></svg>\n            </div>\n        </div>\n    </header>\n\n    <!-- Список песен -->\n    <main class=\"max-w-2xl mx-auto px-4 py-6\" id=\"playlist-container\">\n        <div class=\"text-center text-gray-500 animate-pulse mt-10\">Загрузка плейлиста...</div>\n    </main>\n    \n    <div class=\"h-12 text-center mt-8 opacity-20 text-xs font-mono max-w-2xl mx-auto\">\n        -- END OF PLAYLIST --\n    </div>\n\n    <!-- МОДАЛЬНОЕ ОКНО ВОПРОС-ОТВЕТ -->\n    <div id=\"qa-modal\" class=\"fixed inset-0 z-[60] hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4\">\n        <div class=\"bg-[#111] border border-cyan-500/30 w-full max-w-md rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.8)] p-6 relative\">\n            <button id=\"btn-close-qa\" class=\"absolute top-4 right-4 text-gray-500 hover:text-white transition-colors\">\n                <svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg>\n            </button>\n            \n            <h2 class=\"text-xl font-bold text-white mb-1 tracking-wider\">Связь с Автором</h2>\n            <p class=\"text-xs text-gray-500 font-mono mb-4\">Напиши вопрос или отзыв. Откроется твой почтовый клиент.</p>\n            \n            <div class=\"space-y-4\">\n                <textarea id=\"qa-text\" class=\"w-full h-32 bg-black/50 border border-white/10 rounded-lg p-3 text-sm text-gray-200 focus:outline-none focus:border-cyan-500/50 transition-colors resize-none placeholder-gray-700 font-mono\" placeholder=\"Текст сообщения...\"></textarea>\n                \n                <button id=\"btn-send-email\" class=\"w-full py-3 bg-cyan-900/30 hover:bg-cyan-500 text-cyan-400 hover:text-black font-bold border border-cyan-500/50 rounded-lg transition-all active:scale-95 uppercase tracking-widest text-sm\">\n                    Отправить\n                </button>\n            </div>\n        </div>\n    </div>\n\n    <!-- Плеер -->\n    <div class=\"fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-cyan-500/30 p-4 pb-8 z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.8)]\">\n        <div class=\"absolute top-0 left-0 right-0 h-1 bg-gray-800 cursor-pointer group\">\n            <div id=\"progress-fill\" class=\"h-full bg-cyan-500 relative shadow-[0_0_10px_rgba(6,182,212,0.5)] w-0 transition-all duration-100 ease-linear\">\n                <div class=\"absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] opacity-0 group-hover:opacity-100 transition-opacity\"></div>\n            </div>\n            <input type=\"range\" id=\"progress-input\" min=\"0\" value=\"0\" step=\"1\" class=\"absolute inset-0 w-full h-4 -top-2 opacity-0 cursor-pointer z-10\">\n        </div>\n        <div class=\"flex items-center justify-between mt-3 gap-3 max-w-2xl mx-auto\">\n            <div class=\"flex-1 min-w-0 flex items-center gap-3\">\n                <div id=\"cover-art\" class=\"w-12 h-12 rounded-md bg-gray-800 border border-cyan-500/20 overflow-hidden shrink-0\">\n                    <img src=\"\" alt=\"cover\" class=\"w-full h-full object-cover hidden\">\n                </div>\n                <div class=\"flex flex-col min-w-0\">\n                    <h3 id=\"track-title\" class=\"text-white font-bold truncate text-sm sm:text-base leading-tight\">Загрузка...</h3>\n                    <p id=\"track-artist\" class=\"text-cyan-400 text-xs truncate opacity-80\">...</p>\n                </div>\n            </div>\n            <div class=\"flex items-center gap-3 sm:gap-5 shrink-0\">\n                <button id=\"btn-repeat\" class=\"text-gray-500 hover:text-cyan-400 transition-colors active:scale-90 p-2 group relative mr-1\" title=\"Mode: Repeat All\">\n                    <svg id=\"icon-repeat-all\" class=\"w-5 h-5 sm:w-6 sm:h-6\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"17 1 21 5 17 9\"></polyline><path d=\"M3 11V9a4 4 0 0 1 4-4h14\"></path><polyline points=\"7 23 3 19 7 15\"></polyline><path d=\"M21 13v2a4 4 0 0 1-4 4H3\"></path></svg>\n                    <svg id=\"icon-repeat-one\" class=\"w-5 h-5 sm:w-6 sm:h-6 hidden text-cyan-400\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"17 1 21 5 17 9\"></polyline><path d=\"M3 11V9a4 4 0 0 1 4-4h14\"></path><polyline points=\"7 23 3 19 7 15\"></polyline><path d=\"M21 13v2a4 4 0 0 1-4 4H3\"></path><path d=\"M11 10h1v4\"></path></svg>\n                </button>\n                <button id=\"btn-prev\" class=\"text-gray-400 hover:text-white transition-colors active:scale-90 p-2\"><svg class=\"w-6 h-6 sm:w-8 sm:h-8\" viewBox=\"0 0 24 24\" fill=\"currentColor\" stroke=\"none\"><path d=\"M19 20L9 12l10-8v16zM5 19h2V5H5v14z\"></path></svg></button>\n                <button id=\"btn-play\" class=\"w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-cyan-500 text-black hover:bg-cyan-400 hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)]\">\n                    <svg id=\"icon-play\" class=\"w-6 h-6 sm:w-7 sm:h-7 ml-1\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M8 5v14l11-7z\"></path></svg>\n                    <svg id=\"icon-pause\" class=\"w-6 h-6 sm:w-7 sm:h-7 hidden\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M6 19h4V5H6v14zm8-14v14h4V5h-4z\"></path></svg>\n                </button>\n                <button id=\"btn-next\" class=\"text-gray-400 hover:text-white transition-colors active:scale-90 p-2\"><svg class=\"w-6 h-6 sm:w-8 sm:h-8\" viewBox=\"0 0 24 24\" fill=\"currentColor\" stroke=\"none\"><path d=\"M5 4l10 8-10 8V4zM19 5h-2v14h2V5z\"></path></svg></button>\n                <a href=\"https://t.me/Roofusman/\" target=\"_blank\" class=\"flex flex-col items-center justify-center text-gray-400 hover:text-cyan-400 transition-colors ml-2 group active:scale-90\">\n                    <div class=\"p-2 rounded-full border border-white/10 group-hover:border-cyan-500/50 bg-white/5\"><svg class=\"w-5 h-5\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"></path></svg></div>\n                </a>\n            </div>\n        </div>\n        <div class=\"flex justify-between text-[10px] text-gray-500 mt-1 font-mono tracking-wider px-1 max-w-2xl mx-auto\">\n            <span id=\"time-current\">0:00</span>\n            <span id=\"time-total\">0:00</span>\n        </div>\n    </div>\n\n    <!-- JAVASCRIPT LOGIC -->\n    <script>\n        document.addEventListener('DOMContentLoaded', () => {\n\n            const player = {\n                // === Состояние плеера (мозги) ===\n                state: {\n                    tracks: [],\n                    currentIndex: 0,\n                    isPlaying: false,\n                    repeatMode: 'all', // 'all' | 'one'\n                    audio: new Audio(),\n                },\n\n                // === Элементы DOM (руки и глаза) ===\n                dom: {\n                    playlistContainer: document.getElementById('playlist-container'),\n                    btnPlay: document.getElementById('btn-play'),\n                    btnNext: document.getElementById('btn-next'),\n                    btnPrev: document.getElementById('btn-prev'),\n                    btnRepeat: document.getElementById('btn-repeat'),\n                    iconPlay: document.getElementById('icon-play'),\n                    iconPause: document.getElementById('icon-pause'),\n                    iconRepeatAll: document.getElementById('icon-repeat-all'),\n                    iconRepeatOne: document.getElementById('icon-repeat-one'),\n                    trackTitle: document.getElementById('track-title'),\n                    trackArtist: document.getElementById('track-artist'),\n                    coverImg: document.querySelector('#cover-art img'),\n                    progressInput: document.getElementById('progress-input'),\n                    progressFill: document.getElementById('progress-fill'),\n                    timeCurrent: document.getElementById('time-current'),\n                    timeTotal: document.getElementById('time-total'),\n                    // ДОБАВЛЕНО АНТОНОМ РЕКСОМ: Для клика по прогресс-бару\n                    progressBarContainer: document.querySelector('.fixed.bottom-0 .absolute.group'),\n                    \n                    // QA Modal elements\n                    btnOpenQA: document.getElementById('btn-open-qa'),\n                    btnCloseQA: document.getElementById('btn-close-qa'),\n                    qaModal: document.getElementById('qa-modal'),\n                    btnSendEmail: document.getElementById('btn-send-email'),\n                    qaText: document.getElementById('qa-text'),\n                },\n\n                // === Инициализация (запуск) ===\n                async init() {\n                    this.bindEvents();\n                    await this.fetchPlaylist();\n                    this.renderPlaylist();\n                    \n                    if (this.state.tracks.length > 0) {\n                        const savedState = this.loadState();\n                        this.state.currentIndex = savedState?.index || 0;\n                        // ДОБАВЛЕНО АНТОНОМ РЕКСОМ: Убедимся, что загружаем трек с текущим временем\n                        this.loadTrack(this.state.currentIndex, savedState?.time || 0); \n                    } else {\n                        this.dom.playlistContainer.innerHTML = '<div class=\"text-center text-gray-500 mt-10\">Плейлист пуст.</div>';\n                    }\n                },\n\n                // === Основные методы (действия) ===\n                async fetchPlaylist() {\n                    const fallbackTracks = [\n                         { \"id\": \"176471044996817\", \"title\": \"001 Ревизия Временный эксклюзив\", \"artist\": \"ЕиЁ\", \"url\": \"./001_Ревизия_ Временный эксклюзив.mp3\", \"cover\": \"\", \"durationStr\": \"38:27\" }, { \"id\": \"17647104498620\", \"title\": \"Рано думать v2\", \"artist\": \"ЕиЁ\", \"url\": \"./Рано думать_v2.mp3\", \"cover\": \"\", \"durationStr\": \"4:34\" }, { \"id\": \"17647104498701\", \"title\": \"То же поле\", \"artist\": \"ЕиЁ\", \"url\": \"./То же поле.mp3\", \"cover\": \"\", \"durationStr\": \"3:47\" }, { \"id\": \"17647104498792\", \"title\": \"Калитка\", \"artist\": \"ЕиЁ\", \"url\": \"./Калитка.mp3\", \"cover\": \"\", \"durationStr\": \"3:43\" }, { \"id\": \"17647104498863\", \"title\": \"Дотянем до весны\", \"artist\": \"ЕиЁ\", \"url\": \"./Дотянем до весны.mp3\", \"cover\": \"\", \"durationStr\": \"3:43\" }, { \"id\": \"17647104498944\", \"title\": \"Когда широко, воздух прозрачен\", \"artist\": \"ЕиЁ\", \"url\": \"./Когда_широко,_воздух_прозрачен.mp3\", \"cover\": \"\", \"durationStr\": \"4:36\" }, { \"id\": \"17647104499015\", \"title\": \"Ми норм\", \"artist\": \"ЕиЁ\", \"url\": \"./Ми_норм.mp3\", \"cover\": \"\", \"durationStr\": \"4:18\" }, { \"id\": \"17647104499036\", \"title\": \"Антон Рекс Прости \", \"artist\": \"ЕиЁ\", \"url\": \"./Антон Рекс _ Прости .mp3\", \"cover\": \"\", \"durationStr\": \"4:27\" }, { \"id\": \"17647104499247\", \"title\": \"На сегодня Романыч лимит исчерпан\", \"artist\": \"ЕиЁ\", \"url\": \"./На_сегодня_Романыч_лимит_исчерпан.mp3\", \"cover\": \"\", \"durationStr\": \"4:10\" }, { \"id\": \"17647104499278\", \"title\": \"А дальше зима\", \"artist\": \"ЕиЁ\", \"url\": \"./А дальше зима.mp3\", \"cover\": \"\", \"durationStr\": \"4:00\" }, { \"id\": \"17647104499299\", \"title\": \"Годы, Месяцы кавер\", \"artist\": \"ЕиЁ\", \"url\": \"./Годы, Месяцы_ кавер.mp3\", \"cover\": \"\", \"durationStr\": \"4:17\" }, { \"id\": \"176471044993110\", \"title\": \"Хуто Рок 2024\", \"artist\": \"ЕиЁ\", \"url\": \"./Хуто_Рок_2024.mp3\", \"cover\": \"\", \"durationStr\": \"57:54\" }, { \"id\": \"176471044993311\", \"title\": \"Rec Rec Лухомань\", \"artist\": \"ЕиЁ\", \"url\": \"./Rec Rec _ Лухомань.mp3\", \"cover\": \"\", \"durationStr\": \"48:37\" }, { \"id\": \"176471044994012\", \"title\": \"Отголоски памяти улыбка на лице,\", \"artist\": \"ЕиЁ\", \"url\": \"./Отголоски памяти улыбка на лице,.mp3\", \"cover\": \"\", \"durationStr\": \"3:16\" }, { \"id\": \"176471044994713\", \"title\": \"Нейро-Кадриль Гаражный Ответ \", \"artist\": \"ЕиЁ\", \"url\": \"./Нейро-Кадриль _Гаражный Ответ_.mp3\", \"cover\": \"\", \"durationStr\": \"3:54\" }, { \"id\": \"176471044995314\", \"title\": \"ХОРОВОД полный сбор \", \"artist\": \"ЕиЁ\", \"url\": \"./ХОРОВОД _ полный сбор .mp3\", \"cover\": \"\", \"durationStr\": \"3:45\" }, { \"id\": \"176471044996015\", \"title\": \"Атмосфера\", \"artist\": \"ЕиЁ\", \"url\": \"./Атмосфера.mp3\", \"cover\": \"\", \"durationStr\": \"3:14\" }, { \"id\": \"176471044996616\", \"title\": \"Главная Песня\", \"artist\": \"ЕиЁ\", \"url\": \"./Главная Песня.mp3\", \"cover\": \"\", \"durationStr\": \"4:28\" }, { \"id\": \"176471044997518\", \"title\": \"Разговор у огня\", \"artist\": \"ЕиЁ\", \"url\": \"./Разговор у огня.mp3\", \"cover\": \"\", \"durationStr\": \"3:04\" }, { \"id\": \"176471044998119\", \"title\": \"Антон Рекс Я стёр подошвы до самой сути, \", \"artist\": \"ЕиЁ\", \"url\": \"./Антон_Рекс_Я_стёр_подошвы_до_самой_сути,_.mp3\", \"cover\": \"\", \"durationStr\": \"5:07\" } ,  { \"id\": \"17648434702740\",\"title\": \"Вечное Сейчас 0 fl\",\"artist\": \"ЕиЁ\", \"url\": \"./Вечное Сейчас_0_fl.mp3\",\"cover\": \"\",  \"durationStr\": \"13:50\"\n    }\n];\n                    ].sort((a, b) => Number(b.id) - Number(a.id));\n\n                    try {\n                        const response = await fetch('./tracks.json');\n                        if (!response.ok) throw new Error('Network response was not ok');\n                        const data = await response.json();\n                        this.state.tracks = data.length > 0 ? data : fallbackTracks;\n                    } catch (error) {\n                        console.warn(\"Could not load tracks.json. Using default tracks.\", error);\n                        this.state.tracks = fallbackTracks;\n                    }\n                },\n                \n                renderPlaylist() {\n                    this.dom.playlistContainer.innerHTML = '';\n                    this.state.tracks.forEach((track, index) => {\n                        const div = document.createElement('div');\n                        div.className = 'track-item group relative flex items-center gap-4 p-4 mb-2 rounded-xl cursor-pointer transition-all duration-300 border bg-zinc-900/50 border-white/5 hover:border-white/20 hover:bg-zinc-800';\n                        div.dataset.index = index;\n                        div.innerHTML = `\n                            <div class=\"w-6 flex justify-center items-center\">\n                                <span class=\"track-number group-hover:hidden text-gray-500 font-mono text-xs\">${String(index + 1).padStart(2, '0')}</span>\n                                <div class=\"track-icon-container hidden items-end gap-[2px] h-3 w-4\">\n                                    <div class=\"bar\" style=\"animation-delay: 0s\"></div>\n                                    <div class=\"bar\" style=\"animation-delay: 0.1s\"></div>\n                                    <div class=\"bar\" style=\"animation-delay: 0.2s\"></div>\n                                </div>\n                                <svg class=\"track-play-icon w-4 h-4 text-cyan-400 hidden group-hover:block absolute left-5\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M8 5v14l11-7z\"></path></svg>\n                            </div>\n                            <div class=\"flex-1 min-w-0\">\n                                <h4 class=\"font-bold truncate text-lg text-gray-200\">${track.title}</h4>\n                                <p class=\"text-sm text-gray-500 truncate font-mono\">${track.artist}</p>\n                            </div>\n                            <div class=\"text-xs text-gray-600 font-mono\">${track.durationStr}</div>\n                        `;\n                        this.dom.playlistContainer.appendChild(div);\n                    });\n                },\n                \n                loadTrack(index, startTime = 0) {\n                    if (!this.state.tracks[index]) return;\n                    \n                    const track = this.state.tracks[index];\n                    this.state.audio.src = track.url;\n                    this.state.audio.load();\n                    \n                    // ДОБАВЛЕНО АНТОНОМ РЕКСОМ: Индикатор загрузки\n                    this.dom.trackTitle.classList.add('loading-pulse');\n                    this.dom.trackArtist.classList.add('loading-pulse');\n\n                    this.state.audio.onloadedmetadata = () => {\n                         this.state.audio.currentTime = startTime;\n                         this.updateProgress();\n                         // ДОБАВЛЕНО АНТОНОМ РЕКСОМ: Удаляем индикатор загрузки\n                         this.dom.trackTitle.classList.remove('loading-pulse');\n                         this.dom.trackArtist.classList.remove('loading-pulse');\n                    };\n\n                    this.dom.trackTitle.textContent = track.title;\n                    this.dom.trackArtist.textContent = track.artist;\n                    \n                    if (track.cover) {\n                        this.dom.coverImg.src = track.cover;\n                        this.dom.coverImg.classList.remove('hidden');\n                    } else {\n                        this.dom.coverImg.classList.add('hidden');\n                    }\n                    \n                    this.updateActiveTrackUI();\n                },\n\n                playTrack(index) {\n                    if (index === this.state.currentIndex && this.state.isPlaying) {\n                        this.pause();\n                    } else if (index === this.state.currentIndex && !this.state.isPlaying) {\n                        this.play();\n                    }\n                    else {\n                        this.state.currentIndex = index;\n                        this.loadTrack(index);\n                        this.play();\n                    }\n                },\n                \n                play() {\n                    if (this.state.tracks.length === 0) return;\n                    this.state.audio.play().catch(e => console.error(\"Play error:\", e));\n                    this.state.isPlaying = true;\n                    this.updatePlayPauseUI();\n                    this.updateActiveTrackUI();\n                },\n                \n                pause() {\n                    this.state.audio.pause();\n                    this.state.isPlaying = false;\n                    this.updatePlayPauseUI();\n                    this.updateActiveTrackUI();\n                },\n\n                nextTrack() {\n                    const newIndex = (this.state.currentIndex + 1) % this.state.tracks.length;\n                    this.playTrack(newIndex);\n                },\n\n                prevTrack() {\n                    const newIndex = (this.state.currentIndex - 1 + this.state.tracks.length) % this.state.tracks.length;\n                    this.playTrack(newIndex);\n                },\n                \n                toggleRepeatMode() {\n                    if (this.state.repeatMode === 'all') {\n                        this.state.repeatMode = 'one';\n                        this.dom.iconRepeatAll.classList.add('hidden');\n                        this.dom.iconRepeatOne.classList.remove('hidden');\n                        this.dom.btnRepeat.title = \"Mode: Repeat One\";\n                    } else {\n                        this.state.repeatMode = 'all';\n                        this.dom.iconRepeatOne.classList.add('hidden');\n                        this.dom.iconRepeatAll.classList.remove('hidden');\n                        this.dom.btnRepeat.title = \"Mode: Repeat All\";\n                    }\n                },\n                \n                // === Логика Вопрос-Ответ ===\n                openQA() {\n                    this.dom.qaModal.classList.remove('hidden');\n                    document.body.classList.add('modal-open');\n                },\n                \n                closeQA() {\n                    this.dom.qaModal.classList.add('hidden');\n                    document.body.classList.remove('modal-open');\n                },\n                \n                sendEmail() {\n                    const text = this.dom.qaText.value.trim();\n                    if (!text) return;\n                    \n                    const subject = encodeURIComponent(\"Вопрос из PWA плеера\");\n                    const body = encodeURIComponent(text);\n                    const email = \"roofusman@gmail.com\";\n                    \n                    window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;\n                    this.closeQA();\n                    this.dom.qaText.value = '';\n                },\n\n                // === Обновления UI ===\n                updatePlayPauseUI() {\n                    if (this.state.isPlaying) {\n                        this.dom.iconPlay.classList.add('hidden');\n                        this.dom.iconPause.classList.remove('hidden');\n                        this.dom.coverImg.classList.add('animate-spin-slow');\n                        this.dom.coverImg.style.animationPlayState = 'running';\n                    } else {\n                        this.dom.iconPlay.classList.remove('hidden');\n                        this.dom.iconPause.classList.add('hidden');\n                        this.dom.coverImg.style.animationPlayState = 'paused';\n                    }\n                },\n                \n                updateActiveTrackUI() {\n                    document.querySelectorAll('.track-item').forEach((item, index) => {\n                        const numberEl = item.querySelector('.track-number');\n                        const iconContainer = item.querySelector('.track-icon-container');\n                        const playIcon = item.querySelector('.track-play-icon');\n\n                        if (index === this.state.currentIndex) {\n                            item.classList.add('active');\n                            if (this.state.isPlaying) {\n                                numberEl.classList.add('hidden');\n                                playIcon.classList.add('hidden');\n                                iconContainer.classList.remove('hidden');\n                                iconContainer.classList.add('flex');\n                            } else {\n                                numberEl.classList.remove('hidden');\n                                iconContainer.classList.add('hidden');\n                                iconContainer.classList.remove('flex');\n                            }\n                        } else {\n                            item.classList.remove('active');\n                            numberEl.classList.remove('hidden');\n                            iconContainer.classList.add('hidden');\n                            iconContainer.classList.remove('flex');\n                        }\n                    });\n                },\n\n                updateProgress() {\n                    const { currentTime, duration } = this.state.audio;\n                    if (isNaN(duration)) return;\n                    \n                    const percent = (currentTime / duration) * 100;\n                    this.dom.progressFill.style.width = `${percent}%`;\n                    this.dom.progressInput.value = currentTime;\n                    this.dom.progressInput.max = duration;\n                    this.dom.timeCurrent.textContent = this.formatTime(currentTime);\n                    this.dom.timeTotal.textContent = this.formatTime(duration);\n                },\n\n                // ИЗМЕНЕНО АНТОНОМ РЕКСОМ: Добавлена поддержка часов для длительных треков\n                formatTime(seconds) {\n                    const h = Math.floor(seconds / 3600);\n                    const m = Math.floor((seconds % 3600) / 60);\n                    const s = Math.floor(seconds % 60);\n                    \n                    let result = `${m}:${s < 10 ? '0' : ''}${s}`;\n                    if (h > 0) {\n                        result = `${h}:${m < 10 ? '0' : ''}${result}`;\n                    }\n                    return result;\n                },\n                \n                // === Сохранение/Загрузка состояния ===\n                saveState() {\n                    try {\n                        const stateToSave = {\n                            index: this.state.currentIndex,\n                            time: this.state.audio.currentTime\n                        };\n                        localStorage.setItem('antonRecsPlayerState', JSON.stringify(stateToSave));\n                    } catch (e) {\n                        console.error(\"Failed to save state:\", e);\n                    }\n                },\n\n                loadState() {\n                    try {\n                        const savedState = localStorage.getItem('antonRecsPlayerState');\n                        return savedState ? JSON.parse(savedState) : null;\n                    } catch (e) {\n                        console.error(\"Failed to load state:\", e);\n                        return null;\n                    }\n                },\n\n                // === Привязка событий ===\n                bindEvents() {\n                    this.dom.btnPlay.addEventListener('click', () => this.state.isPlaying ? this.pause() : this.play());\n                    this.dom.btnNext.addEventListener('click', () => this.nextTrack());\n                    this.dom.btnPrev.addEventListener('click', () => this.prevTrack());\n                    this.dom.btnRepeat.addEventListener('click', () => this.toggleRepeatMode());\n\n                    this.state.audio.addEventListener('timeupdate', () => this.updateProgress());\n                    this.state.audio.addEventListener('ended', () => {\n                        if (this.state.repeatMode === 'one') {\n                            this.playTrack(this.state.currentIndex);\n                        } else {\n                            this.nextTrack();\n                        }\n                    });\n                    this.state.audio.addEventListener('error', e => console.error(\"Audio error:\", e));\n\n                    this.dom.progressInput.addEventListener('input', (e) => {\n                        this.state.audio.currentTime = Number(e.target.value);\n                    });\n                    \n                    this.dom.playlistContainer.addEventListener('click', (e) => {\n                       const trackItem = e.target.closest('.track-item');\n                       if (trackItem) {\n                           const index = parseInt(trackItem.dataset.index, 10);\n                           this.playTrack(index);\n                       }\n                    });\n\n                    // ДОБАВЛЕНО АНТОНОМ РЕКСОМ: Перемотка по клику на область прогресс-бара\n                    this.dom.progressBarContainer.addEventListener('click', (e) => {\n                        const progressContainer = e.currentTarget;\n                        const clickX = e.clientX - progressContainer.getBoundingClientRect().left;\n                        const width = progressContainer.getBoundingClientRect().width;\n                        const percent = clickX / width;\n                        this.state.audio.currentTime = this.state.audio.duration * percent;\n                    });\n                    \n                    // QA Events\n                    this.dom.btnOpenQA.addEventListener('click', () => this.openQA());\n                    this.dom.btnCloseQA.addEventListener('click', () => this.closeQA());\n                    this.dom.btnSendEmail.addEventListener('click', () => this.sendEmail());\n                    \n                    // Закрытие модалки по клику вне контента\n                    this.dom.qaModal.addEventListener('click', (e) => {\n                        if (e.target === this.dom.qaModal) this.closeQA();\n                    });\n                    \n                    // Сохраняем состояние при закрытии вкладки\n                    window.addEventListener('beforeunload', () => this.saveState());\n                },\n            };\n\n            player.init();\n        });\n    </script>\n</body>\n</html>"
+<!DOCTYPE html>
+
+
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AntonRecS--player</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Шрифт -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #050505;
+            color: #e0e0e0;
+            padding-bottom: 160px; /* Отступ снизу для плеера */
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Кастомный скроллбар */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #06b6d4; }
+        /* Стили для ползунка */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 0; width: 0; }
+        input[type=range]:focus { outline: none; }
+        /* Анимация обложки */
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow { animation: spin-slow 8s linear infinite; }
+        /* Эффект нажатия на трек */
+        .track-item.active {
+            background-color: rgba(6, 182, 212, 0.1);
+            border-color: rgba(6, 182, 212, 0.5);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.1);
+        }
+        .track-item.active h4 { color: #22d3ee; }
+        /* Визуалайзер */
+        .bar { width: 4px; background-color: #22d3ee; animation: bounce 0.5s infinite alternate; }
+        @keyframes bounce {
+            10% { height: 10%; }
+            100% { height: 100%; }
+        }
+        /* Модальное окно */
+        .modal-open { overflow: hidden; }
+    </style>
+</head>
+<body class="selection:bg-cyan-500 selection:text-black min-h-screen">
+<!-- Фоновая атмосфера -->
+<div class="fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,_#1a1a1a_0%,_#000000_100%)] -z-10 pointer-events-none"></div>
+<div class="fixed top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
+
+<!-- Шапка -->
+<header class="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10 px-6 py-4">
+    <div class="max-w-2xl mx-auto flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <div class="w-3 h-3 bg-cyan-500 rounded-full shadow-[0_0_10px_#06b6d4] animate-pulse"></div>
+            <h1 class="text-xl font-bold tracking-widest uppercase font-mono">
+                AntonRecS<span class="text-cyan-400">--player</span>
+            </h1>
+        </div>
+        
+        <div class="flex items-center gap-4">
+             <!-- Кнопка Вопрос -->
+            <button id="btn-open-qa" class="text-gray-400 hover:text-cyan-400 transition-colors p-1" title="Задать вопрос автору">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9.82 9.05a2 2 0 0 1 2.91 1.7c0 1.29-.87 1.84-1.27 2.15-.36.27-.6.55-.42 1.1"></path><path d="M11 15h.01"></path></svg>
+            </button>
+            <!-- Кнопка Скачать (заглушка иконки из оригинала) -->
+            <svg class="w-6 h-6 text-gray-500 hidden sm:block" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/></svg>
+        </div>
+    </div>
+</header>
+
+<!-- Список песен -->
+<main class="max-w-2xl mx-auto px-4 py-6" id="playlist-container">
+    <div class="text-center text-gray-500 animate-pulse mt-10">Загрузка плейлиста...</div>
+</main>
+
+<div class="h-12 text-center mt-8 opacity-20 text-xs font-mono max-w-2xl mx-auto">
+    -- END OF PLAYLIST --
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО ВОПРОС-ОТВЕТ -->
+<div id="qa-modal" class="fixed inset-0 z-[60] hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#111] border border-cyan-500/30 w-full max-w-md rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.8)] p-6 relative">
+        <button id="btn-close-qa" class="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        
+        <h2 class="text-xl font-bold text-white mb-1 tracking-wider">Связь с Автором</h2>
+        <p class="text-xs text-gray-500 font-mono mb-4">Напиши вопрос или отзыв. Откроется твой почтовый клиент.</p>
+        
+        <div class="space-y-4">
+            <textarea id="qa-text" class="w-full h-32 bg-black/50 border border-white/10 rounded-lg p-3 text-sm text-gray-200 focus:outline-none focus:border-cyan-500/50 transition-colors resize-none placeholder-gray-700 font-mono" placeholder="Текст сообщения..."></textarea>
+            
+            <button id="btn-send-email" class="w-full py-3 bg-cyan-900/30 hover:bg-cyan-500 text-cyan-400 hover:text-black font-bold border border-cyan-500/50 rounded-lg transition-all active:scale-95 uppercase tracking-widest text-sm">
+                Отправить
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Плеер -->
+<div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-cyan-500/30 p-4 pb-8 z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.8)]">
+    <div class="absolute top-0 left-0 right-0 h-1 bg-gray-800 cursor-pointer group">
+        <div id="progress-fill" class="h-full bg-cyan-500 relative shadow-[0_0_10px_rgba(6,182,212,0.5)] w-0 transition-all duration-100 ease-linear">
+            <div class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </div>
+        <input type="range" id="progress-input" min="0" value="0" step="1" class="absolute inset-0 w-full h-4 -top-2 opacity-0 cursor-pointer z-10">
+    </div>
+    <div class="flex items-center justify-between mt-3 gap-3 max-w-2xl mx-auto">
+        <div class="flex-1 min-w-0 flex items-center gap-3">
+            <div id="cover-art" class="w-12 h-12 rounded-md bg-gray-800 border border-cyan-500/20 overflow-hidden shrink-0">
+                <img src="" alt="cover" class="w-full h-full object-cover hidden">
+            </div>
+            <div class="flex flex-col min-w-0">
+                <h3 id="track-title" class="text-white font-bold truncate text-sm sm:text-base leading-tight">Загрузка...</h3>
+                <p id="track-artist" class="text-cyan-400 text-xs truncate opacity-80">...</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 sm:gap-5 shrink-0">
+            <button id="btn-repeat" class="text-gray-500 hover:text-cyan-400 transition-colors active:scale-90 p-2 group relative mr-1" title="Mode: Repeat All">
+                <svg id="icon-repeat-all" class="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+                <svg id="icon-repeat-one" class="w-5 h-5 sm:w-6 sm:h-6 hidden text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path><path d="M11 10h1v4"></path></svg>
+            </button>
+            <button id="btn-prev" class="text-gray-400 hover:text-white transition-colors active:scale-90 p-2"><svg class="w-6 h-6 sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 20L9 12l10-8v16zM5 19h2V5H5v14z"></path></svg></button>
+            <button id="btn-play" class="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-cyan-500 text-black hover:bg-cyan-400 hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                <svg id="icon-play" class="w-6 h-6 sm:w-7 sm:h-7 ml-1" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
+                <svg id="icon-pause" class="w-6 h-6 sm:w-7 sm:h-7 hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>
+            </button>
+            <button id="btn-next" class="text-gray-400 hover:text-white transition-colors active:scale-90 p-2"><svg class="w-6 h-6 sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M5 4l10 8-10 8V4zM19 5h-2v14h2V5z"></path></svg></button>
+            <a href="https://t.me/Roofusman/" target="_blank" class="flex flex-col items-center justify-center text-gray-400 hover:text-cyan-400 transition-colors ml-2 group active:scale-90">
+                <div class="p-2 rounded-full border border-white/10 group-hover:border-cyan-500/50 bg-white/5"><svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
+            </a>
+        </div>
+    </div>
+    <div class="flex justify-between text-[10px] text-gray-500 mt-1 font-mono tracking-wider px-1 max-w-2xl mx-auto">
+        <span id="time-current">0:00</span>
+        <span id="time-total">0:00</span>
+    </div>
+</div>
+
+<!-- JAVASCRIPT LOGIC -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        const player = {
+            // === Состояние плеера (мозги) ===
+            state: {
+                tracks: [],
+                currentIndex: 0,
+                isPlaying: false,
+                repeatMode: 'all', // 'all' | 'one'
+                audio: new Audio(),
+            },
+
+            // === Элементы DOM (руки и глаза) ===
+            dom: {
+                playlistContainer: document.getElementById('playlist-container'),
+                btnPlay: document.getElementById('btn-play'),
+                btnNext: document.getElementById('btn-next'),
+                btnPrev: document.getElementById('btn-prev'),
+                btnRepeat: document.getElementById('btn-repeat'),
+                iconPlay: document.getElementById('icon-play'),
+                iconPause: document.getElementById('icon-pause'),
+                iconRepeatAll: document.getElementById('icon-repeat-all'),
+                iconRepeatOne: document.getElementById('icon-repeat-one'),
+                trackTitle: document.getElementById('track-title'),
+                trackArtist: document.getElementById('track-artist'),
+                coverImg: document.querySelector('#cover-art img'),
+                progressInput: document.getElementById('progress-input'),
+                progressFill: document.getElementById('progress-fill'),
+                timeCurrent: document.getElementById('time-current'),
+                timeTotal: document.getElementById('time-total'),
+                
+                // QA Modal elements
+                btnOpenQA: document.getElementById('btn-open-qa'),
+                btnCloseQA: document.getElementById('btn-close-qa'),
+                qaModal: document.getElementById('qa-modal'),
+                btnSendEmail: document.getElementById('btn-send-email'),
+                qaText: document.getElementById('qa-text'),
+            },
+
+            // === Инициализация (запуск) ===
+            async init() {
+                this.bindEvents();
+                await this.fetchPlaylist();
+                this.renderPlaylist();
+                
+                if (this.state.tracks.length > 0) {
+                    const savedState = this.loadState();
+                    this.state.currentIndex = savedState?.index || 0;
+                    this.loadTrack(this.state.currentIndex, savedState?.time || 0);
+                } else {
+                    this.dom.playlistContainer.innerHTML = '<div class="text-center text-gray-500 mt-10">Плейлист пуст.</div>';
+                }
+            },
+
+            // === Основные методы (действия) ===
+            async fetchPlaylist() {
+                const fallbackTracks = [
+                     { "id": "176471044996817", "title": "001 Ревизия  Временный эксклюзив", "artist": "ЕиЁ", "url": "./001_Ревизия_ Временный эксклюзив.mp3", "cover": "", "durationStr": "38:27" }, { "id": "17647104498620", "title": "Рано думать v2", "artist": "ЕиЁ", "url": "./Рано думать_v2.mp3", "cover": "", "durationStr": "4:34" }, { "id": "17647104498701", "title": "То же поле", "artist": "ЕиЁ", "url": "./То же поле.mp3", "cover": "", "durationStr": "3:47" }, { "id": "17647104498792", "title": "Калитка", "artist": "ЕиЁ", "url": "./Калитка.mp3", "cover": "", "durationStr": "3:43" }, { "id": "17647104498863", "title": "Дотянем до весны", "artist": "ЕиЁ", "url": "./Дотянем до весны.mp3", "cover": "", "durationStr": "3:43" }, { "id": "17647104498944", "title": "Когда широко, воздух прозрачен", "artist": "ЕиЁ", "url": "./Когда_широко,_воздух_прозрачен.mp3", "cover": "", "durationStr": "4:36" }, { "id": "17647104499015", "title": "Ми норм", "artist": "ЕиЁ", "url": "./Ми_норм.mp3", "cover": "", "durationStr": "4:18" }, { "id": "17647104499036", "title": "Антон Рекс   Прости ", "artist": "ЕиЁ", "url": "./Антон Рекс _ Прости .mp3", "cover": "", "durationStr": "4:27" }, { "id": "17647104499247", "title": "На сегодня Романыч лимит исчерпан", "artist": "ЕиЁ", "url": "./На_сегодня_Романыч_лимит_исчерпан.mp3", "cover": "", "durationStr": "4:10" }, { "id": "17647104499278", "title": "А дальше зима", "artist": "ЕиЁ", "url": "./А дальше зима.mp3", "cover": "", "durationStr": "4:00" }, { "id": "17647104499299", "title": "Годы, Месяцы  кавер", "artist": "ЕиЁ", "url": "./Годы, Месяцы_ кавер.mp3", "cover": "", "durationStr": "4:17" }, { "id": "176471044993110", "title": "Хуто Рок 2024", "artist": "ЕиЁ", "url": "./Хуто_Рок_2024.mp3", "cover": "", "durationStr": "57:54" }, { "id": "176471044993311", "title": "Rec Rec   Лухомань", "artist": "ЕиЁ", "url": "./Rec Rec _ Лухомань.mp3", "cover": "", "durationStr": "48:37" }, { "id": "176471044994012", "title": "Отголоски памяти улыбка на лице,", "artist": "ЕиЁ", "url": "./Отголоски памяти улыбка на лице,.mp3", "cover": "", "durationStr": "3:16" }, { "id": "176471044994713", "title": "Нейро-Кадриль  Гаражный Ответ ", "artist": "ЕиЁ", "url": "./Нейро-Кадриль _Гаражный Ответ_.mp3", "cover": "", "durationStr": "3:54" }, { "id": "176471044995314", "title": "ХОРОВОД   полный сбор ", "artist": "ЕиЁ", "url": "./ХОРОВОД _ полный сбор .mp3", "cover": "", "durationStr": "3:45" }, { "id": "176471044996015", "title": "Атмосфера", "artist": "ЕиЁ", "url": "./Атмосфера.mp3", "cover": "", "durationStr": "3:14" }, { "id": "176471044996616", "title": "Главная Песня", "artist": "ЕиЁ", "url": "./Главная Песня.mp3", "cover": "", "durationStr": "4:28" }, { "id": "176471044997518", "title": "Разговор у огня", "artist": "ЕиЁ", "url": "./Разговор у огня.mp3", "cover": "", "durationStr": "3:04" }, { "id": "176471044998119", "title": "Антон Рекс Я стёр подошвы до самой сути, ", "artist": "ЕиЁ", "url": "./Антон_Рекс_Я_стёр_подошвы_до_самой_сути,_.mp3", "cover": "", "durationStr": "5:07" } ,  { "id": "17648434702740","title": "Вечное Сейчас 0 fl","artist": "ЕиЁ", "url": "./Вечное Сейчас_0_fl.mp3","cover": "",  "durationStr": "13:50"
 }
+
+];
+].sort((a, b) => Number(b.id) - Number(a.id));
+
+
+                try {
+                    const response = await fetch('./tracks.json');
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const data = await response.json();
+                    this.state.tracks = data.length > 0 ? data : fallbackTracks;
+                } catch (error) {
+                    console.warn("Could not load tracks.json. Using default tracks.", error);
+                    this.state.tracks = fallbackTracks;
+                }
+            },
+            
+            renderPlaylist() {
+                this.dom.playlistContainer.innerHTML = '';
+                this.state.tracks.forEach((track, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'track-item group relative flex items-center gap-4 p-4 mb-2 rounded-xl cursor-pointer transition-all duration-300 border bg-zinc-900/50 border-white/5 hover:border-white/20 hover:bg-zinc-800';
+                    div.dataset.index = index;
+                    div.innerHTML = `
+                        <div class="w-6 flex justify-center items-center">
+                            <span class="track-number group-hover:hidden text-gray-500 font-mono text-xs">${String(index + 1).padStart(2, '0')}</span>
+                            <div class="track-icon-container hidden items-end gap-[2px] h-3 w-4">
+                                <div class="bar" style="animation-delay: 0s"></div>
+                                <div class="bar" style="animation-delay: 0.1s"></div>
+                                <div class="bar" style="animation-delay: 0.2s"></div>
+                            </div>
+                            <svg class="track-play-icon w-4 h-4 text-cyan-400 hidden group-hover:block absolute left-5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold truncate text-lg text-gray-200">${track.title}</h4>
+                            <p class="text-sm text-gray-500 truncate font-mono">${track.artist}</p>
+                        </div>
+                        <div class="text-xs text-gray-600 font-mono">${track.durationStr}</div>
+                    `;
+                    this.dom.playlistContainer.appendChild(div);
+                });
+            },
+            
+            loadTrack(index, startTime = 0) {
+                if (!this.state.tracks[index]) return;
+                
+                const track = this.state.tracks[index];
+                this.state.audio.src = track.url;
+                this.state.audio.load();
+                
+                // Устанавливаем время только после того, как метаданные загружены
+                this.state.audio.onloadedmetadata = () => {
+                     this.state.audio.currentTime = startTime;
+                     this.updateProgress();
+                };
+
+                this.dom.trackTitle.textContent = track.title;
+                this.dom.trackArtist.textContent = track.artist;
+                
+                if (track.cover) {
+                    this.dom.coverImg.src = track.cover;
+                    this.dom.coverImg.classList.remove('hidden');
+                } else {
+                    this.dom.coverImg.classList.add('hidden');
+                }
+                
+                this.updateActiveTrackUI();
+            },
+
+            playTrack(index) {
+                if (index === this.state.currentIndex && this.state.isPlaying) {
+                    this.pause();
+                } else if (index === this.state.currentIndex && !this.state.isPlaying) {
+                    this.play();
+                }
+                else {
+                    this.state.currentIndex = index;
+                    this.loadTrack(index);
+                    this.play();
+                }
+            },
+            
+            play() {
+                if (this.state.tracks.length === 0) return;
+                this.state.audio.play().catch(e => console.error("Play error:", e));
+                this.state.isPlaying = true;
+                this.updatePlayPauseUI();
+                this.updateActiveTrackUI();
+            },
+            
+            pause() {
+                this.state.audio.pause();
+                this.state.isPlaying = false;
+                this.updatePlayPauseUI();
+                this.updateActiveTrackUI();
+            },
+
+            nextTrack() {
+                const newIndex = (this.state.currentIndex + 1) % this.state.tracks.length;
+                this.playTrack(newIndex);
+            },
+
+            prevTrack() {
+                const newIndex = (this.state.currentIndex - 1 + this.state.tracks.length) % this.state.tracks.length;
+                this.playTrack(newIndex);
+            },
+            
+            toggleRepeatMode() {
+                if (this.state.repeatMode === 'all') {
+                    this.state.repeatMode = 'one';
+                    this.dom.iconRepeatAll.classList.add('hidden');
+                    this.dom.iconRepeatOne.classList.remove('hidden');
+                    this.dom.btnRepeat.title = "Mode: Repeat One";
+                } else {
+                    this.state.repeatMode = 'all';
+                    this.dom.iconRepeatOne.classList.add('hidden');
+                    this.dom.iconRepeatAll.classList.remove('hidden');
+                    this.dom.btnRepeat.title = "Mode: Repeat All";
+                }
+            },
+            
+            // === Логика Вопрос-Ответ ===
+            openQA() {
+                this.dom.qaModal.classList.remove('hidden');
+                document.body.classList.add('modal-open');
+            },
+            
+            closeQA() {
+                this.dom.qaModal.classList.add('hidden');
+                document.body.classList.remove('modal-open');
+            },
+            
+            sendEmail() {
+                const text = this.dom.qaText.value.trim();
+                if (!text) return;
+                
+                const subject = encodeURIComponent("Вопрос из PWA плеера");
+                const body = encodeURIComponent(text);
+                const email = "roofusman@gmail.com";
+                
+                window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+                this.closeQA();
+                this.dom.qaText.value = '';
+            },
+
+            // === Обновления UI ===
+            updatePlayPauseUI() {
+                if (this.state.isPlaying) {
+                    this.dom.iconPlay.classList.add('hidden');
+                    this.dom.iconPause.classList.remove('hidden');
+                    this.dom.coverImg.classList.add('animate-spin-slow');
+                    this.dom.coverImg.style.animationPlayState = 'running';
+                } else {
+                    this.dom.iconPlay.classList.remove('hidden');
+                    this.dom.iconPause.classList.add('hidden');
+                    this.dom.coverImg.style.animationPlayState = 'paused';
+                }
+            },
+            
+            updateActiveTrackUI() {
+                document.querySelectorAll('.track-item').forEach((item, index) => {
+                    const numberEl = item.querySelector('.track-number');
+                    const iconContainer = item.querySelector('.track-icon-container');
+                    const playIcon = item.querySelector('.track-play-icon');
+
+                    if (index === this.state.currentIndex) {
+                        item.classList.add('active');
+                        if (this.state.isPlaying) {
+                            numberEl.classList.add('hidden');
+                            playIcon.classList.add('hidden');
+                            iconContainer.classList.remove('hidden');
+                            iconContainer.classList.add('flex');
+                        } else {
+                            numberEl.classList.remove('hidden');
+                            iconContainer.classList.add('hidden');
+                            iconContainer.classList.remove('flex');
+                        }
+                    } else {
+                        item.classList.remove('active');
+                        numberEl.classList.remove('hidden');
+                        iconContainer.classList.add('hidden');
+                        iconContainer.classList.remove('flex');
+                    }
+                });
+            },
+
+            updateProgress() {
+                const { currentTime, duration } = this.state.audio;
+                if (isNaN(duration)) return;
+                
+                const percent = (currentTime / duration) * 100;
+                this.dom.progressFill.style.width = `${percent}%`;
+                this.dom.progressInput.value = currentTime;
+                this.dom.progressInput.max = duration;
+                this.dom.timeCurrent.textContent = this.formatTime(currentTime);
+                this.dom.timeTotal.textContent = this.formatTime(duration);
+            },
+
+            formatTime(seconds) {
+                const m = Math.floor(seconds / 60);
+                const s = Math.floor(seconds % 60);
+                return `${m}:${s < 10 ? '0' : ''}${s}`;
+            },
+            
+            // === Сохранение/Загрузка состояния ===
+            saveState() {
+                try {
+                    const stateToSave = {
+                        index: this.state.currentIndex,
+                        time: this.state.audio.currentTime
+                    };
+                    localStorage.setItem('antonRecsPlayerState', JSON.stringify(stateToSave));
+                } catch (e) {
+                    console.error("Failed to save state:", e);
+                }
+            },
+
+            loadState() {
+                try {
+                    const savedState = localStorage.getItem('antonRecsPlayerState');
+                    return savedState ? JSON.parse(savedState) : null;
+                } catch (e) {
+                    console.error("Failed to load state:", e);
+                    return null;
+                }
+            },
+
+            // === Привязка событий ===
+            bindEvents() {
+                this.dom.btnPlay.addEventListener('click', () => this.state.isPlaying ? this.pause() : this.play());
+                this.dom.btnNext.addEventListener('click', () => this.nextTrack());
+                this.dom.btnPrev.addEventListener('click', () => this.prevTrack());
+                this.dom.btnRepeat.addEventListener('click', () => this.toggleRepeatMode());
+
+                this.state.audio.addEventListener('timeupdate', () => this.updateProgress());
+                this.state.audio.addEventListener('ended', () => {
+                    if (this.state.repeatMode === 'one') {
+                        this.playTrack(this.state.currentIndex);
+                    } else {
+                        this.nextTrack();
+                    }
+                });
+                this.state.audio.addEventListener('error', e => console.error("Audio error:", e));
+
+                this.dom.progressInput.addEventListener('input', (e) => {
+                    this.state.audio.currentTime = Number(e.target.value);
+                });
+                
+                this.dom.playlistContainer.addEventListener('click', (e) => {
+                   const trackItem = e.target.closest('.track-item');
+                   if (trackItem) {
+                       const index = parseInt(trackItem.dataset.index, 10);
+                       this.playTrack(index);
+                   }
+                });
+                
+                // QA Events
+                this.dom.btnOpenQA.addEventListener('click', () => this.openQA());
+                this.dom.btnCloseQA.addEventListener('click', () => this.closeQA());
+                this.dom.btnSendEmail.addEventListener('click', () => this.sendEmail());
+                
+                // Закрытие модалки по клику вне контента
+                this.dom.qaModal.addEventListener('click', (e) => {
+                    if (e.target === this.dom.qaModal) this.closeQA();
+                });
+                
+                // Сохраняем состояние при закрытии вкладки
+                window.addEventListener('beforeunload', () => this.saveState());
+            },
+        };
+
+        player.init();
+    });
+</script>
+
+</body>
+</html
